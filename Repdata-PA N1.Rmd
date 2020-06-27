@@ -1,0 +1,107 @@
+---
+title: "Repdata-PA N1"
+author: "Alessio Ballesio"
+date: "27/6/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Setting up analysis by set the working directory and read the data
+
+```{r}
+setwd("C:/Users/aless/Documents/data science/course n5 - reproducible research/Repdata-peerassessment1")
+activity <- read.csv("activity.csv", header= TRUE)
+```
+
+First question asks to calculate the mean of steps. To do this I first need to calculate the number of steps done each day. 
+Then I first plot histogram of the results using the base plot systems
+As second step, calculate the mean and median values
+```{r}
+total_daily_steps<- tapply(activity$steps,activity$date,sum,na.rm = TRUE)
+histogram <- hist(total_daily_steps, xlab= "Number of daily steps", main = "Distribution of daily steps")
+dev.copy(png, file = "Distribution of daily steps.png") 
+dev.off()
+```
+```{r}
+mean_daily_steps <- mean(total_daily_steps)
+mean_daily_steps
+median_daily_steps <- median(total_daily_steps)
+median_daily_steps
+```
+
+## SECONd QUESTION - What is the average daily activity pattern?
+
+First of all I need to calculate, using again tapply function the average steps for each interval across all days. 
+In order to make a time series plot of the 5-minute interval (x-axis) and the average number of steps taken averaged across all days (y-axis). I then plot the function.
+
+```{r average daily activity, echo=TRUE}
+library(dplyr)
+intervals <- group_by(activity, interval)
+average_steps_interval <- summarise(intervals,steps=mean(steps,na.rm=TRUE))
+# putting into a new png file
+plot(average_steps_interval, type= "l", col = "red", xlab = "Interval", ylab= "average n. of steps")
+dev.copy(png, file = "average daily activity.png")
+dev.off()
+```
+
+The second part of question asks to determine which is interval with the highest average number of steps. For this, I use the which.max function
+```{r , echo=TRUE}
+max_interval <- average_steps_interval[which.max(average_steps_interval$steps),]
+max_interval
+```
+
+THIRD STEP - Imputing missing values
+
+First of all I calculate the total number of rows (intervals) for which there is no value. I use function sum(is.na())
+
+```{r , echo=TRUE}
+Number_missing_values <- sum(is.na(activity$steps))
+Number_missing_values
+```
+
+I then decide to replace each NA, with the average value across all intervals- I first create a logical vector which tells in which rows there is a missing value. Then I calculate the mean across all intervals.
+I create therefore a processed "activity" dataset, where instead of those missing values, I put the mean across all intervals, using the logical vector missing_values
+```{r replacing missing value, echo=TRUE}
+missing_values <- is.na(activity$steps)
+value_to_add <- mean(activity$steps,na.rm=TRUE)
+activity_processed <- activity
+activity_processed[missing_values,3] <- value_to_add
+```
+I then create the histogram of this new dataset 
+```{r}
+total_daily_steps_processed<- tapply(activity_processed$steps,activity$date,sum,na.rm = TRUE)
+histogram <- hist(total_daily_steps_processed, xlab= "Number of daily steps", main = "Distribution of daily steps")
+dev.copy(png, file = "Distribution of daily steps-with NA replaced.png") 
+dev.off()
+```
+and calcuate the mean and median
+```{r}
+mean_daily_steps_processed <- mean(total_daily_steps_processed)
+mean_daily_steps_processed
+median_daily_steps_processed <- median(total_daily_steps_processed)
+median_daily_steps_processed
+```
+
+PART 4 - Are there differences in activity patterns between weekdays and weekends?
+
+First step is to create a new factor variable in the dataset with two levels – “weekday” and “weekend” indicating whether a given date is a weekday or weekend day.
+
+```{r}
+activity_processed$day <- weekdays(as.Date(activity_processed$date))
+activity_processed$day_type <- ifelse(activity_processed$day=='sabato' | activity_processed$day=='domenica', 'weekend','weekday')
+```
+
+Then I pass to create a time series plot (i.e. \color{red}{\verb|type = "l"|}type = "l") of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all weekday days or weekend days (y-axis). See the README file in the GitHub repository to see an example of what this plot should look like using simulated data.
+```{r}
+average_steps_interval_and_daytype <- aggregate(steps~interval+day_type,data=activity_processed,FUN=mean,na.action=na.omit)
+library(ggplot2)
+plot <- ggplot(average_steps_interval_and_daytype,aes(interval,steps))
+plot+geom_line(col="red") + facet_grid(day_type ~ .)+ xlab("interval")+ylab("average n. of steps")
+dev.copy(png, file= "weekdays vs weekend.png")
+dev.off()
+```
+
+END
